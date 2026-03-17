@@ -61,30 +61,40 @@ def _split_message(text: str, max_chars: int = None) -> list[str]:
     return chunks
 
 
+async def _send_to_recipient(client: httpx.AsyncClient, url: str, phone: str, chunks: list[str]) -> bool:
+    for i, chunk in enumerate(chunks, start=1):
+        try:
+            payload = {
+                "from": config.wts_from_phone,
+                "to": phone,
+                "body": {"text": chunk},
+            }
+            result = await _post_with_retry(client, url, payload)
+            logger.info(
+                "WhatsApp chunk %d/%d sent to %s — id=%s status=%s",
+                i, len(chunks), phone,
+                result.get("id", "?"),
+                result.get("status", "?"),
+            )
+        except Exception as exc:
+            logger.error("Failed to send chunk %d/%d to %s: %s", i, len(chunks), phone, exc)
+            return False
+        if i < len(chunks):
+            await asyncio.sleep(1)
+    return True
+
+
 async def send_whatsapp_message(text: str) -> bool:
     url = f"{config.wts_api_base_url}/chat/v1/message/send"
     chunks = _split_message(text)
-    logger.info("Sending WhatsApp report in %d chunk(s)", len(chunks))
+    recipients = config.wts_recipient_phones
+
+    logger.info("Sending WhatsApp report in %d chunk(s) to %d recipient(s)", len(chunks), len(recipients))
 
     async with httpx.AsyncClient(timeout=config.http_timeout) as client:
-        for i, chunk in enumerate(chunks, start=1):
-            try:
-                payload = {
-                    "from": config.wts_from_phone,
-                    "to": config.wts_recipient_phone,
-                    "body": {"text": chunk},
-                }
-                result = await _post_with_retry(client, url, payload)
-                logger.info(
-                    "WhatsApp chunk %d/%d sent — id=%s status=%s",
-                    i, len(chunks),
-                    result.get("id", "?"),
-                    result.get("status", "?"),
-                )
-            except Exception as exc:
-                logger.error("Failed to send WhatsApp chunk %d/%d: %s", i, len(chunks), exc)
-                return False
-            if i < len(chunks):
-                await asyncio.sleep(1)
+        results = await asyncio.gather(
+            *[_send_to_recipient(client, url, phone, chunks) for phone in recipients],
+            return_exceptions=False,
+        )
 
-    return True
+    return all(results)

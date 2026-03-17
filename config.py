@@ -14,7 +14,9 @@ class Config:
     wts_api_base_url: str = field(default_factory=lambda: os.getenv("WTS_API_BASE_URL", "https://api.wts.chat"))
     wts_api_token: str = field(default_factory=lambda: os.getenv("WTS_API_TOKEN", ""))
     wts_from_phone: str = field(default_factory=lambda: os.getenv("WTS_FROM_PHONE", ""))
-    wts_recipient_phone: str = field(default_factory=lambda: os.getenv("WTS_RECIPIENT_PHONE", ""))
+    wts_recipient_phones: list[str] = field(default_factory=lambda: [
+        p.strip() for p in os.getenv("WTS_RECIPIENT_PHONES", "").split(",") if p.strip()
+    ])
 
     report_hour: int = field(default_factory=lambda: int(os.getenv("REPORT_HOUR", "18")))
     report_minute: int = field(default_factory=lambda: int(os.getenv("REPORT_MINUTE", "0")))
