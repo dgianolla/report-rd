@@ -52,7 +52,7 @@ def _format_diary(diary: DiaryDetail) -> str:
     ]
 
     if ocorrencia and ocorrencia != "N/A":
-        lines += ["", f"📌 *Ocorrência:* {ocorrencia}"]
+        lines += ["", f"📌 *Plano de Ação:* {ocorrencia}"]
 
     lines += [
         "",
