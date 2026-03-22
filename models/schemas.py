@@ -74,6 +74,9 @@ class DiaryDetail:
     funcionarios: list[Employee]
     dados_plano_acao: ActionPlanData
     comentarios: list[str] = field(default_factory=list)
+    ocorrencias_texto: list[str] = field(default_factory=list)
+    pendencias: list[str] = field(default_factory=list)
+    resumo_ocorrencias: Optional[str] = None
     resumo_comentarios: Optional[str] = None
     periodo_trabalho: str = "daytime"
     feriado: str = "no"

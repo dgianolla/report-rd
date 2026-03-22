@@ -2,7 +2,7 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from config import config
-from models.schemas import DiaryDetail, Period, ReportData
+from models.schemas import DiaryDetail, Period, ReportData, Project
 
 CLIMA_MAP: dict[str, str] = {
     "sunny": "☀️",
@@ -76,8 +76,16 @@ def _format_diary(diary: DiaryDetail) -> str:
         for emp in absent:
             lines.append(f"   • {emp.dados.nome} — {emp.dados.cargo.nome}")
 
+    if diary.resumo_ocorrencias:
+        lines += ["", f"📋 *Resumo das atividades:* {diary.resumo_ocorrencias}"]
+
     if diary.resumo_comentarios:
         lines += ["", f"💬 *Comentários:* {diary.resumo_comentarios}"]
+
+    if diary.pendencias:
+        lines += ["", "⚠️ *Pendências:*"]
+        for p in diary.pendencias:
+            lines.append(f"   • {p}")
 
     if diary.dados_plano_acao.equipes:
         lines += ["", "🏢 *Equipes:*"]
@@ -122,12 +130,73 @@ def build_report(report_data: ReportData) -> str:
         f"   👷 Total de funcionários em campo: {total_present}"
     )
 
-    return "\n".join([
+    # Seção de pendências consolidadas
+    all_pendencias = [
+        (d.dados_projeto.nome, p)
+        for d in diaries
+        for p in d.pendencias
+    ]
+
+    parts = [
         header,
         "",
         "━━━━━━━━━━━━━━━━━━━━━━",
         "",
         diary_blocks,
+        "",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        summary,
+    ]
+
+    if all_pendencias:
+        pendencia_lines = ["", "━━━━━━━━━━━━━━━━━━━━━━", "", "⚠️ *PENDÊNCIAS DO DIA:*", ""]
+        for nome_proj, p in all_pendencias:
+            pendencia_lines.append(f"   🏗️ *{nome_proj}*")
+            pendencia_lines.append(f"   • {p}")
+            pendencia_lines.append("")
+        parts.extend(pendencia_lines)
+
+    return "\n".join(parts)
+
+
+def build_missing_report(
+    missing: list["Project"],
+    total: int,
+    date_str: str,
+    generated_at: str,
+) -> str:
+    header = (
+        "⚠️ *DIÁRIOS NÃO PREENCHIDOS*\n"
+        f"📅 Data: {date_str}\n"
+        f"🕐 Gerado às: {generated_at}"
+    )
+
+    if not missing:
+        return (
+            f"{header}\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"✅ Todos os {total} projeto(s) ativo(s) preencheram o diário de obra hoje."
+        )
+
+    missing_sorted = sorted(missing, key=lambda p: p.name)
+    project_lines = "\n".join(f"   ❌ {p.name}" for p in missing_sorted)
+
+    summary = (
+        f"📊 *RESUMO:*\n"
+        f"   🏗️ Projetos ativos: {total}\n"
+        f"   ✅ Com diário: {total - len(missing)}\n"
+        f"   ❌ Sem diário: {len(missing)}"
+    )
+
+    return "\n".join([
+        header,
+        "",
+        "━━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        "🚨 *Projetos sem diário preenchido hoje:*",
+        "",
+        project_lines,
         "",
         "━━━━━━━━━━━━━━━━━━━━━━",
         "",

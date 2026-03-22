@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import re
 from datetime import date, timezone, datetime
+from html.parser import HTMLParser
 
 import httpx
 
@@ -14,6 +16,43 @@ from models.schemas import (
 logger = logging.getLogger(__name__)
 
 RETRY_DELAYS = [2, 4, 8]
+_PENDENCIA_RE = re.compile(r"pend[eê]ncia", re.IGNORECASE)
+
+
+class _HTMLStripper(HTMLParser):
+    """Extrai texto puro de HTML, convertendo <br>/<li>/<p> em quebras de linha."""
+
+    def __init__(self):
+        super().__init__()
+        self._parts: list[str] = []
+
+    def handle_data(self, data: str) -> None:
+        text = data.strip()
+        if text:
+            self._parts.append(text)
+
+    def handle_starttag(self, tag: str, attrs) -> None:  # noqa: ARG002
+        if tag in ("br", "p", "li"):
+            self._parts.append("\n")
+
+    def get_text(self) -> str:
+        return re.sub(r"\n{3,}", "\n\n", "".join(self._parts)).strip()
+
+
+def _strip_html(html: str) -> str:
+    stripper = _HTMLStripper()
+    stripper.feed(html)
+    return stripper.get_text()
+
+
+def _extract_pendencias(texto: str) -> list[str]:
+    """Retorna frases/linhas que mencionam pendência."""
+    pendencias = []
+    for line in texto.splitlines():
+        line = line.strip()
+        if line and _PENDENCIA_RE.search(line):
+            pendencias.append(line)
+    return pendencias
 
 
 def _rd_headers() -> dict:
@@ -192,6 +231,17 @@ async def fetch_diary_detail(client: httpx.AsyncClient, diary_id: str, numero: i
         if isinstance(c, dict) and (c.get("texto") or c.get("descricao"))
     ]
 
+    ocorrencias_texto: list[str] = []
+    pendencias: list[str] = []
+    for oc in data.get("ocorrencias") or []:
+        html = oc.get("descricao") or ""
+        if not html:
+            continue
+        texto = _strip_html(html)
+        if texto:
+            ocorrencias_texto.append(texto)
+            pendencias.extend(_extract_pendencias(texto))
+
     return DiaryDetail(
         id=diary_id,
         numero_diario=numero,
@@ -203,6 +253,8 @@ async def fetch_diary_detail(client: httpx.AsyncClient, diary_id: str, numero: i
         funcionarios=[_parse_employee(e) for e in data.get("funcionarios", [])],
         dados_plano_acao=_parse_action_plan(data.get("dadosPlanoAcao")),
         comentarios=comentarios,
+        ocorrencias_texto=ocorrencias_texto,
+        pendencias=pendencias,
         periodo_trabalho=data.get("periodoTrabalho", "daytime") or "daytime",
         feriado=data.get("feriado", "no") or "no",
         criado_em=_parse_created_by(data.get("criadoEm")),

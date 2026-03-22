@@ -20,6 +20,8 @@ class Config:
 
     report_hour: int = field(default_factory=lambda: int(os.getenv("REPORT_HOUR", "18")))
     report_minute: int = field(default_factory=lambda: int(os.getenv("REPORT_MINUTE", "0")))
+    missing_report_hour: int = field(default_factory=lambda: int(os.getenv("MISSING_REPORT_HOUR", "19")))
+    missing_report_minute: int = field(default_factory=lambda: int(os.getenv("MISSING_REPORT_MINUTE", "0")))
     timezone: str = field(default_factory=lambda: os.getenv("TIMEZONE", "America/Sao_Paulo"))
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
 

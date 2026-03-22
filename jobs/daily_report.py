@@ -91,8 +91,13 @@ async def run_daily_report() -> None:
             diaries_count,
         )
 
-        # Summarize comments with LLM (only for diaries that have comments)
+        # Summarize ocorrências and comentários independently with LLM
         for diary in all_diaries:
+            if diary.ocorrencias_texto:
+                diary.resumo_ocorrencias = await summarize_comments(
+                    diary.ocorrencias_texto,
+                    diary.dados_projeto.nome,
+                )
             if diary.comentarios:
                 diary.resumo_comentarios = await summarize_comments(
                     diary.comentarios,

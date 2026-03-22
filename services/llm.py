@@ -15,22 +15,23 @@ def _get_client() -> anthropic.AsyncAnthropic:
     return _client
 
 
-async def summarize_comments(comentarios: list[str], projeto_nome: str) -> str | None:
+async def summarize_comments(ocorrencias: list[str], projeto_nome: str) -> str | None:
     """
-    Recebe uma lista de comentários do diário de obra e retorna um resumo conciso
-    usando Claude Haiku. Retorna None se a lista estiver vazia ou se houver erro.
+    Recebe a lista de ocorrências (texto extraído do HTML) do diário de obra
+    e retorna um resumo conciso usando Claude Haiku.
+    Retorna None se a lista estiver vazia ou se houver erro.
     """
-    if not comentarios:
+    if not ocorrencias:
         return None
 
-    texto = "\n".join(f"- {c}" for c in comentarios)
+    texto = "\n\n".join(ocorrencias)
 
     prompt = (
-        f"Você é um assistente que resume comentários de diários de obra.\n"
+        f"Você é um assistente que resume ocorrências de diários de obra.\n"
         f"Projeto: {projeto_nome}\n\n"
-        f"Comentários do diário:\n{texto}\n\n"
-        f"Faça um resumo breve e objetivo em até 2 frases, destacando os pontos mais importantes. "
-        f"Use linguagem direta, sem introduções como 'Os comentários indicam que...'."
+        f"Ocorrências do diário:\n{texto}\n\n"
+        f"Faça um resumo breve e objetivo em até 2 frases, destacando as principais atividades executadas. "
+        f"Use linguagem direta, sem introduções como 'As ocorrências indicam que...'."
     )
 
     try:
